@@ -43,22 +43,23 @@ blue-green-eks-nodejs/
 ```bash
 
 
+---
 Deployment Workflow
 
-```bash
+
 cd terraform
 terraform init
 terraform apply -auto-approve
-```bash
 
-```bash
+
+---
 Configure kubectl
 aws eks update-kubeconfig --region us-east-1 --name bluegreen-eks
 Deploy Initial Blue Environment
 helm install nodejs-app ./helm/nodejs-app \
 -f ./helm/nodejs-app/values-blue.yaml
 
-```bash
+---
 
 
 Blue-Green Release Process
@@ -70,6 +71,8 @@ Runs health checks
 Switches service traffic
 Keeps previous version for rollback
 
+
+---
 
 Rollback Strategy
 Immediate Traffic Rollback
