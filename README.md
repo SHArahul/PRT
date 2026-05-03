@@ -75,7 +75,7 @@ Before starting, ensure you have:
 
 ## Step 1: Clone Repository
 
-```bash
+
 git clone https://github.com/your-org/flask-eks-cicd.git
 cd flask-eks-cicd
 
