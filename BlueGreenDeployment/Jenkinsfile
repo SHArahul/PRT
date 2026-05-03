@@ -1,0 +1,85 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = 'us-east-1'
+        CLUSTER_NAME = 'bluegreen-eks'
+        ECR_REPO = 'REPLACE_ECR_URL'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/your-repo/blue-green-nodejs-app.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $ECR_REPO:$IMAGE_TAG ./app'
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                sh '''
+                aws ecr get-login-password --region $AWS_REGION | \
+                docker login --username AWS --password-stdin $ECR_REPO
+                docker push $ECR_REPO:$IMAGE_TAG
+                '''
+            }
+        }
+
+        stage('Identify Active Environment') {
+            steps {
+                script {
+                    ACTIVE = sh(
+                        script: "kubectl get svc nodejs-service -o jsonpath='{.spec.selector.version}'",
+                        returnStdout: true
+                    ).trim()
+
+                    TARGET = ACTIVE == 'blue' ? 'green' : 'blue'
+                    env.ACTIVE = ACTIVE
+                    env.TARGET = TARGET
+                }
+            }
+        }
+
+        stage('Deploy New Version') {
+            steps {
+                sh '''
+                helm upgrade --install nodejs-app ./helm/nodejs-app \
+                  -f ./helm/nodejs-app/values-${TARGET}.yaml \
+                  --set image.repository=$ECR_REPO \
+                  --set image.tag=$IMAGE_TAG
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh 'kubectl rollout status deployment/nodejs-app-${TARGET}'
+            }
+        }
+
+        stage('Switch Traffic') {
+            steps {
+                sh '''
+                kubectl patch svc nodejs-service \
+                -p '{"spec":{"selector":{"app":"nodejs-app","version":"'"${TARGET}"'"}}}'
+                '''
+            }
+        }
+    }
+
+    post {
+        failure {
+            sh '''
+            kubectl patch svc nodejs-service \
+            -p '{"spec":{"selector":{"app":"nodejs-app","version":"'"${ACTIVE}"'"}}}'
+            '''
+        }
+    }
+}

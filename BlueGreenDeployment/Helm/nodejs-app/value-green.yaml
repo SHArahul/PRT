@@ -1,0 +1,3 @@
+deploymentColor: green
+service:
+  selector: green

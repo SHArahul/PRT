@@ -1,0 +1,12 @@
+replicaCount: 2
+
+image:
+  repository: REPLACE_ECR_URL
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 80
+  selector: blue
+
+deploymentColor: blue
